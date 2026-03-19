@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env tpane
 # ┌──────────────────────┬──────────────┬──────────────┐
 # │                      │   metrics    │   alerts     │
 # │       main           ├──────────────┼──────────────┤
@@ -14,5 +14,3 @@ logs()    { while :; do echo logs; sleep 1; done; }
 events()  { while :; do echo events; sleep 1; done; }
 deploy()  { while :; do echo deploy; sleep 1; done; }
 shell()   { while :; do echo shell; sleep 1; done; }
-
-tpane

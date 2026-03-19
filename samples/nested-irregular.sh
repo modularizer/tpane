@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env tpane
 # ┌──────────────────────┬──────────────────────┐
 # │        api           │        worker        │
 # │                      ├──────────────┬───────┤
@@ -13,5 +13,3 @@ queue()    { while :; do echo queue; sleep 1; done; }
 logs()     { while :; do echo logs; sleep 1; done; }
 frontend() { while :; do echo frontend; sleep 1; done; }
 shell()    { while :; do echo shell; sleep 1; done; }
-
-tpane

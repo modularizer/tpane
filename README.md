@@ -3,7 +3,7 @@
 **Draw your tmux layout in comments. Run it like a script.**
 
 ```bash
-#!/usr/bin/env bash
+#!/usr/bin/env tpane
 # ┌──────────────────────┬──────────────────────┐
 # │        api           │        worker        │
 # │                      ├──────────────┬───────┤
@@ -18,8 +18,6 @@ queue()    { redis-cli monitor; }
 logs()     { tail -f app.log; }
 frontend() { npm run dev; }
 shell()    { bash; }
-
-tpane
 ```
 
 ```bash
@@ -27,6 +25,18 @@ tpane
 ```
 
 That's it.
+> Hint: **"Column Selection Mode"** is your friend
+
+---
+### Doing a simple shape?
+No need for a diagram. `tpane` will auot-layout for you (1-3 functions => single row, 4 => 2x2, 6 => 2x3)
+```bash
+#!/usr/bin/env tpane
+api()      { while :; do echo api; sleep 1; done; }
+worker()   { while :; do echo worker; sleep 1; done; }
+logs()     { while :; do echo logs; sleep 1; done; }
+shell()    { while :; do echo shell; sleep 1; done; }
+```
 
 ---
 
@@ -56,13 +66,38 @@ curl -fsSL https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master
   -o ~/.local/bin/tpane && chmod +x ~/.local/bin/tpane
 ```
 
+### 4. Create your first layout
+
+```bash
+tpane init dev.sh a b c d
+```
+
+will auto-generate an executable `dev.sh` like this...
+```bash
+#!/usr/bin/env tpane
+# ┌──────────────┬──────────────┐
+# │      a       │      b       │
+# ├──────────────┼──────────────┤
+# │      c       │      d       │
+# └──────────────┴──────────────┘
+
+a() { while :; do echo a; sleep 1; done; }
+b() { while :; do echo b; sleep 1; done; }
+c() { while :; do echo c; sleep 1; done; }
+d() { while :; do echo d; sleep 1; done; }
+```
+which you can launch with simply
+```bash
+./dev.sh
+```
+
 ---
 
 ## How It Works
 
-1. Draw a layout in comments using ASCII or box-drawing characters
-2. Define bash functions with the same names as the pane labels
-3. Call `tpane` at the bottom of your script
+1. Use `#!/usr/bin/env tpane` as the shebang
+2. Draw a layout in comments using ASCII or box-drawing characters
+3. Define bash functions with the same names as the pane labels
 4. Run the script -- tpane parses the diagram, builds a split tree, and launches tmux
 
 ---
@@ -70,7 +105,7 @@ curl -fsSL https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master
 ## Example
 
 ```bash
-#!/usr/bin/env bash
+#!/usr/bin/env tpane
 # ┌──────────────┬──────────────┐
 # │     api      │    worker    │
 # ├──────────────┼──────────────┤
@@ -81,8 +116,6 @@ api()    { python3 api.py; }
 worker() { celery -A tasks worker; }
 logs()   { tail -f app.log; }
 shell()  { bash; }
-
-tpane  # this will read the comment block from the script that called it (this one) to parse the layout, and source its caller to have access to call the functions
 ```
 
 Pane sizes are proportional to the diagram geometry. Wider boxes become wider panes.
@@ -125,7 +158,7 @@ The diagram can follow any of these comment headers:
 Or no header at all -- tpane auto-detects comment lines that start with box-drawing characters:
 
 ```bash
-#!/usr/bin/env bash
+#!/usr/bin/env tpane
 # ┌──────────┬──────────┐
 # │   left   │  right   │
 # └──────────┴──────────┘
@@ -140,10 +173,10 @@ tpane parses by **edge capability** (horizontal vs vertical), not glyph identity
 
 ### Supported characters
 
-| Role | Characters |
-|---|---|
-| Horizontal | `-` `_` `─` `━` `═` |
-| Vertical | `\|` `│` `┃` `║` |
+| Role              | Characters                                                                  |
+|-------------------|-----------------------------------------------------------------------------|
+| Horizontal        | `-` `_` `─` `━` `═`                                                         |
+| Vertical          | `\|` `│` `┃` `║`                                                            |
 | Corner / Junction | `+` `┌` `┐` `└` `┘` `├` `┤` `┬` `┴` `┼` `╔` `╗` `╚` `╝` `╠` `╣` `╦` `╩` `╬` |
 
 Corners and junctions count as both horizontal and vertical, so `+`, `┼`, `├`, etc. all work at intersections.
@@ -188,18 +221,37 @@ Corners and junctions count as both horizontal and vertical, so `+`, `┼`, `├
 tpane ./dev.sh
 ```
 
+### Legacy style (call tpane at the bottom)
+
+```bash
+#!/usr/bin/env bash
+# ┌──────────┬──────────┐
+# │   left   │  right   │
+# └──────────┴──────────┘
+
+left()  { echo left; }
+right() { echo right; }
+
+tpane
+```
+
 ---
 
 ## Options
 
 ```
---session <name>   tmux session name (default: tpane)
+--session <name>   tmux session name (default: script filename)
 --dir <path>       directory of pane executables
 --strict           fail on missing commands
 --dry-run, -d      print what would happen
 --preview          show parsed layout and exit
 --layout-str <s>   inline layout string
+--labels           show pane labels in borders (default)
+--no-labels        hide pane labels in borders
+-f, --force        overwrite existing files (for init)
 alias              print shell alias for tpane
+box                print a blank 2x2 grid to copy-paste
+init <path> [names...]  create a starter script at <path>
 ```
 
 ---

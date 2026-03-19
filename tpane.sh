@@ -70,13 +70,14 @@ declare -ga TPANE_DIAGRAM_LINES=()
 
 # CLI state
 declare -g TPANE_SCRIPT_PATH=
-declare -g TPANE_SESSION_NAME=tpane
+declare -g TPANE_SESSION_NAME=
 declare -g TPANE_DIR=
 declare -gi TPANE_STRICT=0
 declare -gi TPANE_DRY_RUN=0
 declare -gi TPANE_PREVIEW=0
 declare -g TPANE_LAYOUT_STR=
 declare -gi TPANE_LABELS=${TPANE_LABELS:-1}
+declare -gi TPANE_FORCE=0
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -133,7 +134,7 @@ tpane_collapse_spaces() {
 tpane_repeat_char() {
   local ch=$1 n=$2 out= i
   for ((i=0; i<n; i++)); do
-    out+="$ch"
+    out+=$ch
   done
   printf '%s' "$out"
 }
@@ -370,7 +371,7 @@ tpane_find_right_boundary() {
       printf '%d' "$x"
       return 0
     fi
-    ((x++))
+    ((x++)) || true
   done
   printf '%d' -1
 }
@@ -396,7 +397,7 @@ tpane_find_bottom_boundary() {
       printf '%d' "$y"
       return 0
     fi
-    ((y++))
+    ((y++)) || true
   done
   printf '%d' -1
 }
@@ -515,7 +516,7 @@ tpane_add_pane() {
   TPANE_PANE_AUTO_H[id]=$auto_h
   TPANE_PANE_CMD[id]=
 
-  ((TPANE_PANE_COUNT++))
+  ((TPANE_PANE_COUNT++)) || true
 }
 
 tpane_find_leaf_panes() {
@@ -700,7 +701,7 @@ tpane_node_new_leaf() {
   TPANE_NODE_W[id]=''
   TPANE_NODE_H[id]=''
 
-  ((TPANE_NODE_COUNT++))
+  ((TPANE_NODE_COUNT++)) || true
   TPANE_BUILD_RESULT=$id
 }
 
@@ -720,7 +721,7 @@ tpane_node_new_split() {
   TPANE_NODE_W[id]=''
   TPANE_NODE_H[id]=''
 
-  ((TPANE_NODE_COUNT++))
+  ((TPANE_NODE_COUNT++)) || true
   TPANE_BUILD_RESULT=$id
 }
 
@@ -967,6 +968,12 @@ tpane_resolve_commands() {
       continue
     fi
 
+    # PATH fallback: command exists on PATH
+    if command -v "$name" >/dev/null 2>&1; then
+      TPANE_PANE_CMD[i]=$(printf '%q' "$name")
+      continue
+    fi
+
     if (( strict )); then
       tpane_die "no function or executable found for pane '$name'"
       return 1
@@ -1073,7 +1080,7 @@ tpane_print_preview() {
 
 tpane_launch_tmux_from_script() {
   local script_path=$1
-  local session_name=${2:-tpane}
+  local session_name=${2:-$(tpane_session_name_from_path "$script_path")}
   local attach=${3:-1}
   local first_pane
 
@@ -1096,6 +1103,11 @@ tpane_launch_tmux_from_script() {
 
   tpane_apply_node_to_tmux_pane "$TPANE_ROOT_NODE" "$first_pane" || return 1
 
+  # Call tpane_conf hook if defined
+  if declare -F tpane_conf >/dev/null 2>&1; then
+    tpane_conf "$session_name"
+  fi
+
   if (( attach )); then
     if [[ -n ${TMUX:-} ]]; then
       tmux switch-client -t "$session_name"
@@ -1106,12 +1118,61 @@ tpane_launch_tmux_from_script() {
 }
 
 # ---------------------------------------------------------------------------
+# CLI: subcommands
+# ---------------------------------------------------------------------------
+
+tpane_print_box() {
+  cat <<'BOX'
+┌──────────────┬──────────────┐
+│              │              │
+├──────────────┼──────────────┤
+│              │              │
+└──────────────┴──────────────┘
+BOX
+}
+
+tpane_init() {
+  local path=${1:-}
+  shift || true
+  local -a names=("$@")
+
+  [[ -n $path ]] || { tpane_die "usage: tpane init <path> [name1 name2 ...]" || exit 1; }
+
+  if [[ -e $path ]] && (( !TPANE_FORCE )); then
+    tpane_die "$path already exists (use -f to overwrite)" || exit 1
+  fi
+
+  # Default pane names
+  if (( ${#names[@]} == 0 )); then
+    names=(api worker logs shell)
+  fi
+
+  # Generate the layout diagram
+  tpane_generate_auto_layout "${names[@]}"
+
+  # Build the script
+  {
+    echo '#!/usr/bin/env tpane'
+    for line in "${TPANE_DIAGRAM_LINES[@]}"; do
+      echo "# $line"
+    done
+    echo ''
+    for name in "${names[@]}"; do
+      printf '%s() { while :; do echo %s; sleep 1; done; }\n' "$name" "$name"
+    done
+  } > "$path"
+
+  chmod +x "$path"
+  echo "created $path"
+}
+
+# ---------------------------------------------------------------------------
 # CLI: argument parsing and main
 # ---------------------------------------------------------------------------
 
 tpane_parse_args() {
   TPANE_SCRIPT_PATH=
-  TPANE_SESSION_NAME=tpane
+  TPANE_SESSION_NAME=
   TPANE_DIR=
   TPANE_STRICT=0
   TPANE_DRY_RUN=0
@@ -1158,6 +1219,18 @@ tpane_parse_args() {
         self=$(cd "$(dirname "${BASH_SOURCE[0]}")" && printf '%s/%s' "$(pwd)" "$(basename "${BASH_SOURCE[0]}")")
         printf 'alias tpane="bash %q"\n' "$self"
         exit 0
+        ;;
+      box)
+        tpane_print_box
+        exit 0
+        ;;
+      init)
+        shift
+        tpane_init "$@"
+        exit 0
+        ;;
+      -f|--force)
+        TPANE_FORCE=1
         ;;
       -*)
         tpane_die "unknown option: $1" || exit 1
@@ -1227,8 +1300,107 @@ tpane_file_has_diagram() {
   grep -qP '^[[:space:]]*#[[:space:]]*(tpane|[Ll]ayout):[[:space:]]*$|^[[:space:]]*#[[:space:]]*[+┌╔│║]' "$path" 2>/dev/null
 }
 
+tpane_extract_functions_from_script() {
+  # Find function names defined in a script (excludes tpane_conf)
+  local path=$1
+  grep -oP '^[a-zA-Z_][a-zA-Z0-9_-]*(?=\s*\(\))' "$path" 2>/dev/null | grep -v '^tpane_conf$'
+}
+
+tpane_generate_auto_layout() {
+  # Given a list of function names, generate a diagram string
+  local -a names=("$@")
+  local n=${#names[@]}
+  (( n > 0 )) || return 1
+
+  local cols rows
+  if (( n == 1 )); then
+    cols=1; rows=1
+  elif (( n == 2 )); then
+    cols=2; rows=1
+  elif (( n == 3 )); then
+    cols=3; rows=1
+  elif (( n == 4 )); then
+    cols=2; rows=2
+  elif (( n <= 6 )); then
+    cols=3; rows=$(( (n + 2) / 3 ))
+  elif (( n <= 8 )); then
+    cols=4; rows=$(( (n + 3) / 4 ))
+  else
+    cols=4; rows=$(( (n + 3) / 4 ))
+  fi
+
+  # Cell width (inner, not counting borders)
+  local cw=14
+  local i=0 r c line
+
+  TPANE_DIAGRAM_LINES=()
+
+  # Top border
+  line="┌"
+  for ((c=0; c<cols; c++)); do
+    (( c > 0 )) && line+="┬"
+    line+=$(tpane_repeat_char "─" "$cw")
+  done
+  line+="┐"
+  TPANE_DIAGRAM_LINES+=("$line")
+
+  for ((r=0; r<rows; r++)); do
+    # Content row
+    line="│"
+    for ((c=0; c<cols; c++)); do
+      (( c > 0 )) && line+="│"
+      if (( i < n )); then
+        local name=${names[i]}
+        local pad=$(( cw - ${#name} ))
+        local lpad=$(( pad / 2 ))
+        local rpad=$(( pad - lpad ))
+        line+="$(tpane_repeat_char ' ' "$lpad")${name}$(tpane_repeat_char ' ' "$rpad")"
+      else
+        line+="$(tpane_repeat_char ' ' "$cw")"
+      fi
+      ((i++)) || true
+    done
+    line+="│"
+    TPANE_DIAGRAM_LINES+=("$line")
+
+    # Row separator or bottom border
+    if (( r < rows - 1 )); then
+      line="├"
+      for ((c=0; c<cols; c++)); do
+        (( c > 0 )) && line+="┼"
+        line+=$(tpane_repeat_char "─" "$cw")
+      done
+      line+="┤"
+    else
+      line="└"
+      for ((c=0; c<cols; c++)); do
+        (( c > 0 )) && line+="┴"
+        line+=$(tpane_repeat_char "─" "$cw")
+      done
+      line+="┘"
+    fi
+    TPANE_DIAGRAM_LINES+=("$line")
+  done
+}
+
+tpane_session_name_from_path() {
+  local base
+  base=$(basename "$1")
+  base=${base%.*}
+  printf '%s' "$base"
+}
+
 tpane_main() {
   tpane_parse_args "$@"
+
+  # Default session name: script filename without extension, or "tpane"
+  if [[ -z $TPANE_SESSION_NAME ]]; then
+    if [[ -n ${TPANE_SCRIPT_PATH:-} ]]; then
+      TPANE_SESSION_NAME=$(tpane_session_name_from_path "$TPANE_SCRIPT_PATH")
+    else
+      TPANE_SESSION_NAME=tpane
+    fi
+  fi
 
   tpane_require_tmux || exit 1
 
@@ -1239,7 +1411,17 @@ tpane_main() {
     if tpane_file_has_diagram "$TPANE_SCRIPT_PATH"; then
       tpane_extract_diagram_from_script "$TPANE_SCRIPT_PATH" || exit 1
     else
-      tpane_extract_diagram_from_layout_file "$TPANE_SCRIPT_PATH" || exit 1
+      # No diagram found — try auto-layout from function names
+      local -a _auto_funcs=()
+      while IFS= read -r fn; do
+        [[ -n $fn ]] && _auto_funcs+=("$fn")
+      done < <(tpane_extract_functions_from_script "$TPANE_SCRIPT_PATH")
+
+      if (( ${#_auto_funcs[@]} > 0 )); then
+        tpane_generate_auto_layout "${_auto_funcs[@]}"
+      else
+        tpane_extract_diagram_from_layout_file "$TPANE_SCRIPT_PATH" || exit 1
+      fi
     fi
   fi
 
@@ -1275,6 +1457,15 @@ tpane_main() {
   first_pane=$(tmux display-message -p -t "$TPANE_SESSION_NAME:0.0" '#{pane_id}') || exit 1
 
   tpane_apply_node_to_tmux_pane "$TPANE_ROOT_NODE" "$first_pane" || exit 1
+
+  # Source the script to pick up tpane_conf if defined
+  if [[ -n ${TPANE_SCRIPT_PATH:-} ]]; then
+    # shellcheck disable=SC1090
+    source "$TPANE_SCRIPT_PATH" 2>/dev/null || true
+  fi
+  if declare -F tpane_conf >/dev/null 2>&1; then
+    tpane_conf "$TPANE_SESSION_NAME"
+  fi
 
   if [[ -n ${TMUX:-} ]]; then
     tmux switch-client -t "$TPANE_SESSION_NAME"
