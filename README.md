@@ -27,6 +27,7 @@ shell()    { bash; }
 That's it.
 > Hint: **"Column Selection Mode"** is your friend
 
+[tpane.gif](tpane.gif)
 ---
 ### Doing a simple shape?
 No need for a diagram. `tpane` will auot-layout for you (1-3 functions => single row, 4 => 2x2, 6 => 2x3)
