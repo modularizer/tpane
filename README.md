@@ -40,15 +40,9 @@ sudo apt install tmux
 
 # macOS
 brew install tmux
-
-# Fedora
-sudo dnf install tmux
-
-# Arch
-sudo pacman -S tmux
 ```
 ### 2. (optional) Configure tmux in `~/.tmux.conf`
-I recommend adding the following line to allow `Ctrl+x` to exit your session
+I recommend adding the following line to allow `Ctrl+x` to exit your session, and enable mouse controls.
 ```bash
 bind-key -n C-x kill-session
 set -g mouse on
@@ -56,17 +50,10 @@ set -g mouse on
 
 
 ### 3. Install tpane
-
+All you need is [tpane.sh](https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh) on your `PATH`. Here is one way that can be done
 ```bash
 curl -fsSL https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh \
   -o ~/.local/bin/tpane && chmod +x ~/.local/bin/tpane
-```
-
-Make sure `~/.local/bin` is on your PATH. If it isn't:
-
-```bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
 ```
 
 ---
@@ -95,7 +82,7 @@ worker() { celery -A tasks worker; }
 logs()   { tail -f app.log; }
 shell()  { bash; }
 
-tpane
+tpane  # this will read the comment block from the script that called it (this one) to parse the layout, and source its caller to have access to call the functions
 ```
 
 Pane sizes are proportional to the diagram geometry. Wider boxes become wider panes.
@@ -108,8 +95,8 @@ Pane sizes are proportional to the diagram geometry. Wider boxes become wider pa
 
 Sizes come from the diagram. Draw it wider, it gets wider.
 
-### Explicit flex weights
-
+### Explicit flex weights (optional)
+To override the detected sizes, you can use this...
 ```bash
 # ┌──────────────────────┬────────────────────────┐
 # │ api (3w,2h)          │ worker (2w,2h)         │
@@ -148,6 +135,19 @@ Or no header at all -- tpane auto-detects comment lines that start with box-draw
 
 ## Drawing Styles
 
+ASCII, Unicode box-drawing, and double-line characters can be freely mixed.
+tpane parses by **edge capability** (horizontal vs vertical), not glyph identity.
+
+### Supported characters
+
+| Role | Characters |
+|---|---|
+| Horizontal | `-` `_` `─` `━` `═` |
+| Vertical | `\|` `│` `┃` `║` |
+| Corner / Junction | `+` `┌` `┐` `└` `┘` `├` `┤` `┬` `┴` `┼` `╔` `╗` `╚` `╝` `╠` `╣` `╦` `╩` `╬` |
+
+Corners and junctions count as both horizontal and vertical, so `+`, `┼`, `├`, etc. all work at intersections.
+
 ### ASCII
 
 ```
@@ -177,8 +177,6 @@ Or no header at all -- tpane auto-detects comment lines that start with box-draw
 |   logs    │  shell    │
 +───────────┴───────────+
 ```
-
-All three work. tpane parses by edge capability, not glyph identity.
 
 ---
 
