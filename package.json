@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nichochar/tpane"
+    "url": "https://github.com/modularizer/tpane"
   },
   "os": [
     "linux",
