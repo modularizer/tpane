@@ -58,7 +58,7 @@ set -g mouse on
 ### 3. Install tpane
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/modularizer/tpane/main/tpane.sh \
+curl -fsSL https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh \
   -o ~/.local/bin/tpane && chmod +x ~/.local/bin/tpane
 ```
 

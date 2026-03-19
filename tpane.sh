@@ -1266,8 +1266,11 @@ tpane_main() {
   # Launch tmux
   tmux kill-session -t "$TPANE_SESSION_NAME" 2>/dev/null || true
   tmux new-session -d -s "$TPANE_SESSION_NAME" -n "$TPANE_SESSION_NAME" -x "$(tput cols)" -y "$(tput lines)" || exit 1
-  tmux set-option -t "$TPANE_SESSION_NAME" pane-border-status top 2>/dev/null || true
-  tmux set-option -t "$TPANE_SESSION_NAME" pane-border-format ' #{pane_title} ' 2>/dev/null || true
+  if (( TPANE_LABELS )); then
+    tmux set-option -t "$TPANE_SESSION_NAME" pane-border-status top 2>/dev/null || true
+    tmux set-option -t "$TPANE_SESSION_NAME" pane-border-format ' #{pane_title} ' 2>/dev/null || true
+  fi
+  tmux set-window-option -t "$TPANE_SESSION_NAME" automatic-rename off 2>/dev/null || true
   local first_pane
   first_pane=$(tmux display-message -p -t "$TPANE_SESSION_NAME:0.0" '#{pane_id}') || exit 1
 
