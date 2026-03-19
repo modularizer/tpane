@@ -42,32 +42,29 @@ shell()    { while :; do echo shell; sleep 1; done; }
 ---
 
 ## Install
-
-### 1. Install tmux
-
+All you need is [tmux](https://github.com/tmux/tmux/wiki) installed and [tpane.sh](https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh) on your `PATH`. Here's my favorite way to do that:
 ```bash
-# Debian / Ubuntu
-sudo apt install tmux
-
-# macOS
-brew install tmux
+npm i -g tpane
 ```
-### 2. (optional) Configure tmux in `~/.tmux.conf`
+
+This installs `tpane` globally and checks that tmux and bash 4+ are available, suggesting the right install command for your system if they're missing.
+
+#### Alternatively, download the file and add to `~/.local/bin`
+```bash
+curl -fsSL https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh \
+  -o ~/.local/bin/tpane && chmod +x ~/.local/bin/tpane
+```
+
+### (optional) Configure tmux in `~/.tmux.conf`
 I recommend adding the following line to allow `Ctrl+x` to exit your session, and enable mouse controls.
 ```bash
 bind-key -n C-x kill-session
 set -g mouse on
 ```
 
+---
 
-### 3. Install tpane
-All you need is [tpane.sh](https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh) on your `PATH`. Here is one way that can be done
-```bash
-curl -fsSL https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh \
-  -o ~/.local/bin/tpane && chmod +x ~/.local/bin/tpane
-```
-
-### 4. Create your first layout
+## Create your first layout
 
 ```bash
 tpane init dev.sh a b c d

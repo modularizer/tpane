@@ -1,0 +1,37 @@
+{
+  "name": "tpane",
+  "version": "0.1.0",
+  "description": "Draw your tmux layout in comments. Run it like a script.",
+  "bin": {
+    "tpane": "./tpane.sh"
+  },
+  "scripts": {
+    "postinstall": "bash postinstall.sh"
+  },
+  "files": [
+    "tpane.sh",
+    "postinstall.sh"
+  ],
+  "keywords": [
+    "tmux",
+    "terminal",
+    "layout",
+    "multiplexer",
+    "ascii",
+    "diagram",
+    "pane",
+    "cli"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nichochar/tpane"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "engines": {
+    "node": ">=14"
+  }
+}
