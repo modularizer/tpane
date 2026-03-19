@@ -1,5 +1,5 @@
 {
-  "name": "tpane",
+  "name": "tpane-launcher",
   "version": "0.1.0",
   "description": "Draw your tmux layout in comments. Run it like a script.",
   "bin": {

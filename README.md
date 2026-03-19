@@ -44,7 +44,7 @@ shell()    { while :; do echo shell; sleep 1; done; }
 ## Install
 All you need is [tmux](https://github.com/tmux/tmux/wiki) installed and [tpane.sh](https://raw.githubusercontent.com/modularizer/tpane/refs/heads/master/tpane.sh) on your `PATH`. Here's my favorite way to do that:
 ```bash
-npm i -g tpane
+npm i -g tpane-launcher
 ```
 
 This installs `tpane` globally and checks that tmux and bash 4+ are available, suggesting the right install command for your system if they're missing.
