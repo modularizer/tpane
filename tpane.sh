@@ -295,17 +295,19 @@ tpane_rect_has_valid_border() {
   (( x2 > x1 + 1 )) || return 1
   (( y2 > y1 + 1 )) || return 1
 
+  local top_row=${TPANE_GRID_ROWS[y1]}
+  local bot_row=${TPANE_GRID_ROWS[y2]}
   for ((x=x1; x<=x2; x++)); do
-    ch=$(tpane_char_at "$y1" "$x")
+    ch=${top_row:x:1}
     tpane_supports_h "$ch" || return 1
-    ch=$(tpane_char_at "$y2" "$x")
+    ch=${bot_row:x:1}
     tpane_supports_h "$ch" || return 1
   done
 
   for ((y=y1; y<=y2; y++)); do
-    ch=$(tpane_char_at "$y" "$x1")
+    ch=${TPANE_GRID_ROWS[y]:x1:1}
     tpane_supports_v "$ch" || return 1
-    ch=$(tpane_char_at "$y" "$x2")
+    ch=${TPANE_GRID_ROWS[y]:x2:1}
     tpane_supports_v "$ch" || return 1
   done
 
@@ -319,11 +321,8 @@ tpane_rect_has_internal_full_vertical_divider() {
   for ((x=x1+1; x<=x2-1; x++)); do
     ok=1
     for ((y=y1; y<=y2; y++)); do
-      ch=$(tpane_char_at "$y" "$x")
-      if ! tpane_supports_v "$ch"; then
-        ok=0
-        break
-      fi
+      ch=${TPANE_GRID_ROWS[y]:x:1}
+      case "$ch" in "|"|"+"|"│"|"┃"|"║"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") ;; *) ok=0; break ;; esac
     done
     (( ok )) && return 0
   done
@@ -337,12 +336,10 @@ tpane_rect_has_internal_full_horizontal_divider() {
 
   for ((y=y1+1; y<=y2-1; y++)); do
     ok=1
+    local _row=${TPANE_GRID_ROWS[y]}
     for ((x=x1; x<=x2; x++)); do
-      ch=$(tpane_char_at "$y" "$x")
-      if ! tpane_supports_h "$ch"; then
-        ok=0
-        break
-      fi
+      ch=${_row:x:1}
+      case "$ch" in "-"|"_"|"+"|"─"|"━"|"═"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") ;; *) ok=0; break ;; esac
     done
     (( ok )) && return 0
   done
@@ -352,54 +349,44 @@ tpane_rect_has_internal_full_horizontal_divider() {
 
 tpane_find_left_boundary() {
   local y=$1 x=$2 ch
+  local row=${TPANE_GRID_ROWS[y]}
   while (( x >= 0 )); do
-    ch=$(tpane_char_at "$y" "$x")
-    if tpane_supports_v "$ch"; then
-      printf '%d' "$x"
-      return 0
-    fi
+    ch=${row:x:1}
+    case "$ch" in "|"|"+"|"│"|"┃"|"║"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") REPLY=$x; return 0 ;; esac
     ((x--))
   done
-  printf '%d' -1
+  REPLY=-1
 }
 
 tpane_find_right_boundary() {
   local y=$1 x=$2 ch
+  local row=${TPANE_GRID_ROWS[y]}
   while (( x < TPANE_GRID_W )); do
-    ch=$(tpane_char_at "$y" "$x")
-    if tpane_supports_v "$ch"; then
-      printf '%d' "$x"
-      return 0
-    fi
+    ch=${row:x:1}
+    case "$ch" in "|"|"+"|"│"|"┃"|"║"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") REPLY=$x; return 0 ;; esac
     ((x++)) || true
   done
-  printf '%d' -1
+  REPLY=-1
 }
 
 tpane_find_top_boundary() {
   local y=$1 x=$2 ch
   while (( y >= 0 )); do
-    ch=$(tpane_char_at "$y" "$x")
-    if tpane_supports_h "$ch"; then
-      printf '%d' "$y"
-      return 0
-    fi
+    ch=${TPANE_GRID_ROWS[y]:x:1}
+    case "$ch" in "-"|"_"|"+"|"─"|"━"|"═"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") REPLY=$y; return 0 ;; esac
     ((y--))
   done
-  printf '%d' -1
+  REPLY=-1
 }
 
 tpane_find_bottom_boundary() {
   local y=$1 x=$2 ch
   while (( y < TPANE_GRID_H )); do
-    ch=$(tpane_char_at "$y" "$x")
-    if tpane_supports_h "$ch"; then
-      printf '%d' "$y"
-      return 0
-    fi
+    ch=${TPANE_GRID_ROWS[y]:x:1}
+    case "$ch" in "-"|"_"|"+"|"─"|"━"|"═"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") REPLY=$y; return 0 ;; esac
     ((y++)) || true
   done
-  printf '%d' -1
+  REPLY=-1
 }
 
 # ---------------------------------------------------------------------------
@@ -548,19 +535,25 @@ tpane_find_leaf_panes() {
   declare -A seen_rect=()
 
   for ((y=0; y<TPANE_GRID_H; y++)); do
+    local _row=${TPANE_GRID_ROWS[y]}
     for ((x=0; x<TPANE_GRID_W; x++)); do
-      ch=$(tpane_char_at "$y" "$x")
+      ch=${_row:x:1}
 
-      if [[ $ch != ' ' ]] && ! tpane_is_text_char "$ch"; then
-        continue
-      fi
+      # Skip border chars — we only seed from interior (text/space) cells
+      case "$ch" in
+        "-"|"_"|"+"|"─"|"━"|"═"|"|"|"│"|"┃"|"║"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") continue ;;
+      esac
 
-      left=$(tpane_find_left_boundary "$y" "$x")
-      right=$(tpane_find_right_boundary "$y" "$x")
-      top=$(tpane_find_top_boundary "$y" "$x")
-      bottom=$(tpane_find_bottom_boundary "$y" "$x")
+      tpane_find_left_boundary "$y" "$x"; left=$REPLY
+      tpane_find_right_boundary "$y" "$x"; right=$REPLY
+      tpane_find_top_boundary "$y" "$x"; top=$REPLY
+      tpane_find_bottom_boundary "$y" "$x"; bottom=$REPLY
 
       (( left >= 0 && right >= 0 && top >= 0 && bottom >= 0 )) || continue
+
+      key="$left,$top,$right,$bottom"
+      [[ -n ${seen_rect[$key]:-} ]] && continue
+      seen_rect[$key]=1
 
       tpane_rect_has_valid_border "$left" "$top" "$right" "$bottom" || continue
 
@@ -570,10 +563,6 @@ tpane_find_leaf_panes() {
       if tpane_rect_has_internal_full_horizontal_divider "$left" "$top" "$right" "$bottom"; then
         continue
       fi
-
-      key="$left,$top,$right,$bottom"
-      [[ -n ${seen_rect[$key]:-} ]] && continue
-      seen_rect[$key]=1
 
       text=$(tpane_extract_rect_text "$left" "$top" "$right" "$bottom")
       if ! tpane_parse_label_and_flex "$text"; then
@@ -772,11 +761,8 @@ tpane_build_tree_for_panes() {
   for ((x=x1+1; x<=x2-1; x++)); do
     local full=1 ch
     for ((y=y1; y<=y2; y++)); do
-      ch=$(tpane_char_at "$y" "$x")
-      if ! tpane_supports_v "$ch"; then
-        full=0
-        break
-      fi
+      ch=${TPANE_GRID_ROWS[y]:x:1}
+      case "$ch" in "|"|"+"|"│"|"┃"|"║"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") ;; *) full=0; break ;; esac
     done
     (( full )) || continue
 
@@ -807,12 +793,10 @@ tpane_build_tree_for_panes() {
 
   for ((y=y1+1; y<=y2-1; y++)); do
     local full=1 ch
+    local _row=${TPANE_GRID_ROWS[y]}
     for ((x=x1; x<=x2; x++)); do
-      ch=$(tpane_char_at "$y" "$x")
-      if ! tpane_supports_h "$ch"; then
-        full=0
-        break
-      fi
+      ch=${_row:x:1}
+      case "$ch" in "-"|"_"|"+"|"─"|"━"|"═"|"┌"|"┐"|"└"|"┘"|"├"|"┤"|"┬"|"┴"|"┼"|"╔"|"╗"|"╚"|"╝"|"╠"|"╣"|"╦"|"╩"|"╬") ;; *) full=0; break ;; esac
     done
     (( full )) || continue
 
